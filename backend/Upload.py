@@ -1,53 +1,69 @@
 from flask import Flask, request, jsonify
-import pandas as pd
-import os
-from flask_cors import CORS
+import csv
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all domains
+CSV_FILE = 'dataMahasiswa.csv'
 
-UPLOAD_FOLDER = './uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+# READ: Mendapatkan data dari CSV
+@app.route('/data', methods=['GET'])
+def get_data():
+    data = []
+    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            data.append(row)
+    return jsonify(data)
 
-# Path to the existing CSV file
-csv_file_path = './dataMahasiswa.csv'
+# CREATE: Menambahkan data baru ke CSV
+@app.route('/data', methods=['POST'])
+def add_data():
+    new_data = request.json
+    with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['no', 'jurusan', 'nama_mahasiswa', 'ipk']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writerow(new_data)
+    return jsonify({"message": "Data added successfully"}), 201
 
-@app.route('/upload', methods=['POST'])
-def upload_csv():
-    # Get form data
-    no = request.form.get('no')
-    jurusan = request.form.get('jurusan')
-    nama_mahasiswa = request.form.get('nama_mahasiswa')
-    ipk = request.form.get('ipk')
+# UPDATE: Memperbarui data berdasarkan 'no'
+@app.route('/data/<no>', methods=['PUT'])
+def update_data(no):
+    updated_data = request.json
+    data = []
+    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            if row['no'] == no:
+                row.update(updated_data)
+            data.append(row)
+    with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
+    return jsonify({"message": "Data updated successfully"})
 
-    # Debug: Print the form data to ensure it's received correctly
-    print(f"Received data - No: {no}, Jurusan: {jurusan}, Nama: {nama_mahasiswa}, IPK: {ipk}")
-    
-    # Check if any data is missing
-    if not no or not jurusan or not nama_mahasiswa or not ipk:
-        return jsonify({"error": "Missing data. All fields are required."}), 400
-
-    # Create a new DataFrame with the form data
-    new_data = {
-        'no': [no],
-        'jurusan': [jurusan],
-        'nama_mahasiswa': [nama_mahasiswa],
-        'ipk': [ipk]
-    }
-    df_new = pd.DataFrame(new_data)
-
-    # Check if the CSV file exists
-    if os.path.exists(csv_file_path):
-        # If the file exists, append the new data
-        df_existing = pd.read_csv(csv_file_path)
-        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-        df_combined.to_csv(csv_file_path, index=False)
-    else:
-        # If the file doesn't exist, create it and save the new data
-        df_new.to_csv(csv_file_path, index=False)
-
-    return jsonify({"message": "Data uploaded successfully!", "data_preview": df_new.to_dict(orient='records')}), 200
+# DELETE: Menghapus data berdasarkan 'no'
+@app.route('/data/<no>', methods=['DELETE'])
+def delete_data(no):
+    data = []
+    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            if row['no'] != no:
+                data.append(row)
+    with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
+    return jsonify({"message": "Data deleted successfully"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Membuat file CSV dengan header jika belum ada
+    try:
+        with open(CSV_FILE, 'r', encoding='utf-8') as csvfile:
+            pass
+    except FileNotFoundError:
+        with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['no', 'jurusan', 'nama_mahasiswa', 'ipk']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+    app.run(debug=True)
