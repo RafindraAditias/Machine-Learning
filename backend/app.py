@@ -1,29 +1,57 @@
-import numpy as np
+from flask import Flask, jsonify
+from flask_cors import CORS
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn_extra.cluster import KMedoids  # Import KMedoids dari scikit-learn-extra
+import numpy as np
 
-# Load data from CSV
-data = pd.read_csv('dataMahasiswa.csv')
+app = Flask(__name__)
+CORS(app)
 
-# Tampilkan data
-print(data)
-# Centroid yang Diperbarui (ITERASI 3)
-centroids = [3.01, 3.45, 3.79]
+# Endpoint untuk K-Means
+@app.route('/Kmean', methods=['GET'])
+def cluster_kmeans():
+    # Membaca data dari CSV
+    data = pd.read_csv('dataMahasiswa.csv')
 
-# Menentukan cluster berdasarkan kedekatan IPK dengan centroid
-def assign_cluster(ipk, centroids):
-    distances = [abs(ipk - centroid) for centroid in centroids]
-    return np.argmin(distances)
+    # Mengambil IPK sebagai input clustering
+    ipk_values = data['ipk'].values.reshape(-1, 1)
 
-df['cluster'] = df['ipk'].apply(assign_cluster, centroids=centroids)
+    # K-Means Clustering
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    kmeans.fit(ipk_values)
 
-# Nilai Prediksi (nilai centroid dari cluster)
-df['nilai_prediksi'] = df['cluster'].apply(lambda x: centroids[x])
+    # Menambahkan hasil clustering ke dalam data
+    data['Cluster'] = kmeans.labels_
+    centroids = kmeans.cluster_centers_.flatten()
+    data['Nilai Prediksi'] = data['Cluster'].apply(lambda x: centroids[x])
+    data['Nilai Selisih'] = data['ipk'] - data['Nilai Prediksi']
+    data['MAPE'] = abs(data['Nilai Selisih']) / data['ipk'] * 100
 
-# Nilai Selisih (ipk - nilai_prediksi)
-df['nilai_selisih'] = df['ipk'] - df['nilai_prediksi']
+    return jsonify(data.to_dict(orient='records'))
 
-# MAPE (Mean Absolute Percentage Error)
-df['mape'] = abs(df['nilai_selisih']) / df['ipk'] * 100
+# Endpoint untuk K-Medoids menggunakan sklearn-extra
+@app.route('/Kmedoid', methods=['GET'])
+def cluster_kmedoids():
+    # Membaca data dari CSV
+    data = pd.read_csv('dataMahasiswa.csv')
 
-# Menampilkan hasil akhir
-print(df[['no', 'nama_mahasiwa', 'jurusan', 'ipk', 'cluster', 'nilai_prediksi', 'nilai_selisih', 'mape']])
+    # Mengambil IPK sebagai input clustering
+    ipk_values = data['ipk'].values.reshape(-1, 1)
+
+    # K-Medoids Clustering
+    kmedoids = KMedoids(n_clusters=3, random_state=42, metric="manhattan")
+    kmedoids.fit(ipk_values)
+
+    # Menambahkan hasil clustering ke data
+    data['Cluster'] = kmedoids.labels_
+    centroids = kmedoids.cluster_centers_.flatten()
+    data['Nilai Prediksi'] = data['Cluster'].apply(lambda x: centroids[x])
+    data['Nilai Selisih'] = data['ipk'] - data['Nilai Prediksi']
+    data['MAPE'] = abs(data['Nilai Selisih']) / data['ipk'] * 100
+
+    return jsonify(data.to_dict(orient='records'))
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)

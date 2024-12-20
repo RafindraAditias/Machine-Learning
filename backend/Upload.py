@@ -1,69 +1,57 @@
-from flask import Flask, request, jsonify
-import csv
+from flask import Flask, jsonify
+from flask_cors import CORS
+import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn_extra.cluster import KMedoids  # Import KMedoids dari scikit-learn-extra
+import numpy as np
 
 app = Flask(__name__)
-CSV_FILE = 'dataMahasiswa.csv'
+CORS(app)
 
-# READ: Mendapatkan data dari CSV
-@app.route('/data', methods=['GET'])
-def get_data():
-    data = []
-    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            data.append(row)
-    return jsonify(data)
+# Endpoint untuk K-Means
+@app.route('/Kmean', methods=['GET'])
+def cluster_kmeans():
+    # Membaca data dari CSV
+    data = pd.read_csv('dataMahasiswa.csv')
 
-# CREATE: Menambahkan data baru ke CSV
-@app.route('/data', methods=['POST'])
-def add_data():
-    new_data = request.json
-    with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['no', 'jurusan', 'nama_mahasiswa', 'ipk']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writerow(new_data)
-    return jsonify({"message": "Data added successfully"}), 201
+    # Mengambil IPK sebagai input clustering
+    ipk_values = data['ipk'].values.reshape(-1, 1)
 
-# UPDATE: Memperbarui data berdasarkan 'no'
-@app.route('/data/<no>', methods=['PUT'])
-def update_data(no):
-    updated_data = request.json
-    data = []
-    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if row['no'] == no:
-                row.update(updated_data)
-            data.append(row)
-    with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
-    return jsonify({"message": "Data updated successfully"})
+    # K-Means Clustering
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    kmeans.fit(ipk_values)
 
-# DELETE: Menghapus data berdasarkan 'no'
-@app.route('/data/<no>', methods=['DELETE'])
-def delete_data(no):
-    data = []
-    with open(CSV_FILE, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if row['no'] != no:
-                data.append(row)
-    with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
-    return jsonify({"message": "Data deleted successfully"})
+    # Menambahkan hasil clustering ke dalam data
+    data['Cluster'] = kmeans.labels_
+    centroids = kmeans.cluster_centers_.flatten()
+    data['Nilai Prediksi'] = data['Cluster'].apply(lambda x: centroids[x])
+    data['Nilai Selisih'] = data['ipk'] - data['Nilai Prediksi']
+    data['MAPE'] = abs(data['Nilai Selisih']) / data['ipk'] * 100
+
+    return jsonify(data.to_dict(orient='records'))
+
+# Endpoint untuk K-Medoids menggunakan sklearn-extra
+@app.route('/Kmedoid', methods=['GET'])
+def cluster_kmedoids():
+    # Membaca data dari CSV
+    data = pd.read_csv('dataMahasiswa.csv')
+
+    # Mengambil IPK sebagai input clustering
+    ipk_values = data['ipk'].values.reshape(-1, 1)
+
+    # K-Medoids Clustering
+    kmedoids = KMedoids(n_clusters=3, random_state=42, metric="manhattan")
+    kmedoids.fit(ipk_values)
+
+    # Menambahkan hasil clustering ke data
+    data['Cluster'] = kmedoids.labels_
+    centroids = kmedoids.cluster_centers_.flatten()
+    data['Nilai Prediksi'] = data['Cluster'].apply(lambda x: centroids[x])
+    data['Nilai Selisih'] = data['ipk'] - data['Nilai Prediksi']
+    data['MAPE'] = abs(data['Nilai Selisih']) / data['ipk'] * 100
+
+    return jsonify(data.to_dict(orient='records'))
+
 
 if __name__ == '__main__':
-    # Membuat file CSV dengan header jika belum ada
-    try:
-        with open(CSV_FILE, 'r', encoding='utf-8') as csvfile:
-            pass
-    except FileNotFoundError:
-        with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['no', 'jurusan', 'nama_mahasiswa', 'ipk']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
