@@ -72,13 +72,13 @@ const App = () => {
                   {item.Cluster}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item["Nilai Prediksi"].toFixed(6)}
+                  {item["Nilai Prediksi"].toFixed(2)}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item["Nilai Selisih"].toFixed(6)}
+                  {item["Nilai Selisih"].toFixed(2)}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item.MAPE.toFixed(5)}%
+                  {item.MAPE.toFixed(2)}%
                 </td>
               </tr>
             ))}

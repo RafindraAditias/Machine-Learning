@@ -72,13 +72,13 @@ const Kmedoid = () => {
                   {item.Cluster}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item["Nilai Prediksi"].toFixed(6)}
+                  {item["Nilai Prediksi"].toFixed(3)}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item["Nilai Selisih"].toFixed(6)}
+                  {item["Nilai Selisih"].toFixed(3)}
                 </td>
                 <td className="border border-gray-300 px-4 py-2 text-center">
-                  {item.MAPE.toFixed(5)}%
+                  {item.MAPE.toFixed(3)}%
                 </td>
               </tr>
             ))}

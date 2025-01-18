@@ -6,7 +6,7 @@ import Kmedoid from './pages/Kmedoid';
 
 const App = () => {
   return (
-    <div>
+    <div className='bg-white font-manrope'>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/Kmean" element={<Kmean />} />
